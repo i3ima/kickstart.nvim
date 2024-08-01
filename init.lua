@@ -135,6 +135,13 @@ vim.opt.updatetime = 250
 -- Displays which-key popup sooner
 vim.opt.timeoutlen = 300
 
+local severityMapping = {
+  ['ERROR'] = vim.diagnostic.severity.ERROR,
+  ['WARN'] = vim.diagnostic.severity.WARN,
+  ['INFO'] = vim.diagnostic.severity.INFO,
+  ['HINT'] = vim.diagnostic.severity.HINT,
+}
+
 -- Configure how new splits should be opened
 vim.opt.splitright = true
 vim.opt.splitbelow = true
@@ -175,6 +182,10 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
+-- Buffer keymaps
+vim.keymap.set('n', '<leader>bp', ':bprevious<CR>', { desc = 'Go to [P]revious [B]uffer' })
+vim.keymap.set('n', '<leader>bn', ':bnext<CR>', { desc = 'Go to [N]ext [B]uffer' })
+
 -- TIP: Disable arrow keys in normal mode
 -- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
 -- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
@@ -203,6 +214,13 @@ vim.api.nvim_create_autocmd('TextYankPost', {
     vim.highlight.on_yank()
   end,
 })
+
+-- Copy relative path of current file to clipboard
+vim.api.nvim_create_user_command('Cppath', function()
+  local path = vim.fn.expand '%:p'
+  vim.fn.setreg('+', path)
+  vim.notify('Copied "' .. path .. '" to the clipboard!')
+end, {})
 
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
@@ -240,6 +258,83 @@ require('lazy').setup({
   -- "gc" to comment visual regions/lines
   { 'numToStr/Comment.nvim', opts = {} },
 
+  -- For easier bookmarking
+  { 'chentoast/marks.nvim', config = function() end },
+
+  -- For easier session management
+  {
+    'rmagatti/auto-session',
+    config = function()
+      require('auto-session').setup {}
+    end,
+    lazy = false,
+  },
+
+  {
+    'NTBBloodbath/zig-tools.nvim',
+    -- Load zig-tools.nvim only in Zig buffers
+    ft = 'zig',
+    config = function()
+      local config = {
+        integration = {
+          management = {
+            enable = true,
+            install_path = os.getenv 'HOME' .. '.local/share/nvim/mason/bin/zls',
+          },
+        },
+      }
+
+      -- Initialize with default config
+      require('zig-tools').setup()
+    end,
+    dependencies = {
+      {
+        'akinsho/toggleterm.nvim',
+        config = function()
+          require('toggleterm').setup()
+        end,
+      },
+      {
+        'nvim-lua/plenary.nvim',
+        module_pattern = 'plenary.*',
+      },
+    },
+  },
+
+  -- Very nice rust plugin
+  {
+    'mrcjkb/rustaceanvim',
+    version = '^4', -- Recommended
+    lazy = false, -- This plugin is already lazy
+    config = function()
+      -- rustaceanvim keybinds
+      vim.keymap.set('n', '<leader>cd', function()
+        vim.cmd.RustLsp 'debuggables'
+      end, { desc = '[C]ode [D]ebug' })
+
+      vim.keymap.set('n', '<leader>cD', function()
+        vim.cmd.RustLsp 'debug'
+      end, { desc = '[C]ode [D]ebug' })
+
+      vim.keymap.set('n', '<leader>cu', function()
+        require('dapui').toggle()
+      end, { desc = '[C]ode [U]i (toggle debug UI)' })
+
+      vim.keymap.set('n', '<leader>ct', function()
+        vim.ui.input({ prompt = 'Arguments for test cmd ("scan" for scan, empty for rerun)' }, function(input)
+          print('INPUT: ' .. input)
+          if input == 'scan' then
+            vim.cmd.RustLsp { 'testables' }
+          elseif input:len() ~= 0 or input ~= '' then
+            vim.cmd.RustLsp { 'testables', input }
+          else
+            vim.cmd.RustLsp { 'testables', bang = true }
+          end
+        end)
+      end, { desc = '[C]ode [T]est' })
+    end,
+  },
+
   -- Here is a more advanced example where we pass configuration
   -- options to `gitsigns.nvim`. This is equivalent to the following Lua:
   --    require('gitsigns').setup({ ... })
@@ -255,6 +350,7 @@ require('lazy').setup({
         topdelete = { text = '‾' },
         changedelete = { text = '~' },
       },
+      current_line_blame = true,
     },
   },
 
@@ -278,12 +374,17 @@ require('lazy').setup({
     event = 'VimEnter', -- Sets the loading event to 'VimEnter'
     config = function() -- This is the function that runs, AFTER loading
       require('which-key').setup()
+      -- Show deleted/changes lines directly in buffer
+      -- Live blame in buffer (using virtual text)
+      -- Blame preview
+      -- Open diffview with any revision/commit
 
       -- Document existing key chains
       require('which-key').register {
         ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
         ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
         ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
+        ['<leader>b'] = { name = '[B]uffer', _ = 'which_key_ignore' },
         ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
         ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
         ['<leader>t'] = { name = '[T]oggle', _ = 'which_key_ignore' },
@@ -292,6 +393,15 @@ require('lazy').setup({
       -- visual mode
       require('which-key').register({
         ['<leader>h'] = { 'Git [H]unk' },
+        ['<leader>s'] = {
+          v = {
+            function()
+              local shortcuts = require 'telescope-live-grep-args.shortcuts'
+              shortcuts.grep_visual_selection()
+            end,
+            '[S]earch [V]isual',
+          },
+        },
       }, { mode = 'v' })
     end,
   },
@@ -326,6 +436,12 @@ require('lazy').setup({
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
       { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+      {
+        'nvim-telescope/telescope-live-grep-args.nvim',
+        -- This will not install any breaking changes.
+        -- For major updates, this must be adjusted manually.
+        version = '^1.0.0',
+      },
     },
     config = function()
       -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -369,19 +485,46 @@ require('lazy').setup({
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
+      pcall(require('telescope').load_extension, 'live_grep_args')
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
+
+      local extensions = require('telescope').extensions
+
+      vim.keymap.set('n', '<leader>sb', builtin.buffers, { desc = '[S]earch [B]uffers' })
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
+      vim.keymap.set('n', '<leader>sm', builtin.marks, { desc = '[S]earch [M]arks' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
-      vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
-      vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
+      vim.keymap.set('n', '<leader>sg', extensions.live_grep_args.live_grep_args, { desc = '[S]earch by [G]rep' })
+      vim.keymap.set('n', '<leader>sd', function()
+        local construct_choices = function()
+          local choices = {}
+          for key, value in pairs(severityMapping) do
+            choices[value] = key
+          end
+
+          return choices
+        end
+
+        vim.ui.select(construct_choices(), {
+          prompt = 'Select severity:',
+          format_item = function(item)
+            return 'Filter by: ' .. item
+          end,
+        }, function(choice, idx)
+          print('CHIOCE: ' .. tostring(choice))
+
+          local variant = severityMapping[choice]
+
+          builtin.diagnostics { bufnr = nil, severity = variant }
+        end)
+      end, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
-      vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
 
       -- Slightly advanced example of overriding default behavior and theme
       vim.keymap.set('n', '<leader>/', function()
@@ -577,7 +720,9 @@ require('lazy').setup({
         -- But for many setups, the LSP (`tsserver`) will work just fine
         -- tsserver = {},
         --
-
+        zls = {},
+        ['bash-language-server'] = {},
+        -- rust_analyzer = {},
         lua_ls = {
           -- cmd = {...},
           -- filetypes = { ...},
@@ -614,6 +759,11 @@ require('lazy').setup({
         handlers = {
           function(server_name)
             local server = servers[server_name] or {}
+
+            -- Disable on-save formatiing of ftplugin
+            if server_name == 'zls' then
+              vim.g.zig_fmt_autosave = 0
+            end
             -- This handles overriding only values explicitly passed
             -- by the server configuration above. Useful when disabling
             -- certain features of an LSP (for example, turning off formatting for tsserver)
@@ -644,13 +794,15 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
+        local disable_filetypes = { c = true, cpp = true, zig = true }
         return {
           timeout_ms = 500,
           lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
         }
       end,
       formatters_by_ft = {
+        zig = nil,
+        sh = { 'shfmt' },
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
@@ -835,7 +987,7 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc', 'rust' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -873,11 +1025,11 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
+  require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
   -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
+  require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
