@@ -91,7 +91,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -180,7 +180,7 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 --
 -- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
 -- or just use <C-\><C-n> to exit terminal mode
-vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
+-- vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
 -- Buffer keymaps
 vim.keymap.set('n', '<leader>bp', ':bprevious<CR>', { desc = 'Go to [P]revious [B]uffer' })
@@ -249,6 +249,45 @@ require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
+  {
+    'iamcco/markdown-preview.nvim',
+    cmd = { 'MarkdownPreviewToggle', 'MarkdownPreview', 'MarkdownPreviewStop' },
+    build = 'cd app && yarn install',
+    init = function()
+      vim.g.mkdp_filetypes = { 'markdown' }
+    end,
+    ft = { 'markdown' },
+  },
+
+  -- For easier git view inside of neovim
+  {
+    'sindrets/diffview.nvim',
+    dependencies = {
+      'nvim-tree/nvim-web-devicons',
+    },
+  },
+
+  -- For easier management of cargo crates dependencies
+  {
+    'saecki/crates.nvim',
+    tag = 'stable',
+    -- makes it to load lazy
+    event = { 'BufRead Cargo.toml' },
+    config = function()
+      require('crates').setup {}
+    end,
+  },
+
+  -- Nordic scheme
+  {
+    'AlexvZyl/nordic.nvim',
+    lazy = false,
+    priority = 1000,
+    config = function()
+      require('nordic').load()
+    end,
+  },
+
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
   -- keys can be used to configure plugin behavior/loading/etc.
@@ -266,6 +305,26 @@ require('lazy').setup({
       require('auto-session').setup {}
     end,
     lazy = false,
+  },
+
+  {
+    'kdheepak/lazygit.nvim',
+    cmd = {
+      'LazyGit',
+      'LazyGitConfig',
+      'LazyGitCurrentFile',
+      'LazyGitFilter',
+      'LazyGitFilterCurrentFile',
+    },
+    -- optional for floating window border decoration
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+    },
+    -- setting the keybinding for LazyGit with 'keys' is recommended in
+    -- order to load the plugin when the command is run for the first time
+    keys = {
+      { '<leader>lg', '<cmd>LazyGit<cr>', desc = 'Open lazy git' },
+    },
   },
 
   {
@@ -302,10 +361,10 @@ require('lazy').setup({
   -- Very nice rust plugin
   {
     'mrcjkb/rustaceanvim',
-    version = '^4', -- Recommended
+    version = '^5', -- Recommended
     lazy = false, -- This plugin is already lazy
     config = function()
-      -- rustaceanvim keybinds
+      -- rustaceanvim keymaps
       vim.keymap.set('n', '<leader>cd', function()
         vim.cmd.RustLsp 'debuggables'
       end, { desc = '[C]ode [D]ebug' })
@@ -387,10 +446,15 @@ require('lazy').setup({
         { '<leader>w', group = '[W]orkspace' },
         { '<leader>t', group = '[T]oggle' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
-        { '<leader>sv', function() 
+        {
+          '<leader>sv',
+          function()
             local shortcuts = require 'telescope-live-grep-args.shortcuts'
             shortcuts.grep_visual_selection()
-        end, desc = '[S]earch [V]isual', mode = { 'v' }}
+          end,
+          desc = '[S]earch [V]isual',
+          mode = { 'v' },
+        },
       }
     end,
   },
@@ -464,6 +528,16 @@ require('lazy').setup({
         --   },
         -- },
         -- pickers = {}
+        defaults = {
+          layout_config = {
+            vertical = {
+              width = 0.99,
+            },
+            horizontal = {
+              width = 0.95,
+            },
+          },
+        },
         extensions = {
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
@@ -707,7 +781,7 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        -- clangd = {},
+        clangd = {},
         -- gopls = {},
         -- pyright = {},
         -- rust_analyzer = {},
@@ -720,7 +794,12 @@ require('lazy').setup({
         -- tsserver = {},
         --
         zls = {},
+        elixirls = {},
         ['bash-language-server'] = {},
+        dart = {},
+        docker_compose_language_service = {},
+        dockerls = {},
+        ['nil'] = {},
         -- rust_analyzer = {},
         lua_ls = {
           -- cmd = {...},
@@ -991,7 +1070,24 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'rust' },
+      ensure_installed = {
+        'bash',
+        'c',
+        'diff',
+        'html',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'query',
+        'vim',
+        'vimdoc',
+        'zig',
+        'rust',
+        'elixir',
+        'eex',
+        'heex',
+      },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -1032,7 +1128,7 @@ require('lazy').setup({
   -- require 'kickstart.plugins.lint',
   -- require 'kickstart.plugins.autopairs',
   require 'kickstart.plugins.neo-tree',
-  -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
+  require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.

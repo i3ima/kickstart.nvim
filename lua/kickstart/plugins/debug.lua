@@ -21,6 +21,8 @@ return {
     'williamboman/mason.nvim',
     'jay-babu/mason-nvim-dap.nvim',
 
+    'theHamsta/nvim-dap-virtual-text',
+
     -- Add your own debuggers here
     'leoluz/nvim-dap-go',
   },
@@ -64,6 +66,79 @@ return {
       ensure_installed = {
         -- Update this to ensure that you have the debuggers for the langs you want
         'codelldb',
+      },
+    }
+
+    -- Get the path to `codelldb` installed by Mason.nvim
+    local codelldb_path = require('mason-registry').get_package('codelldb'):get_install_path() .. '/extension'
+    local codelldb_bin = codelldb_path .. '/adapter/codelldb'
+
+    dap.adapters.codelldb = {
+      type = 'server',
+      port = '${port}',
+      executable = {
+        command = codelldb_bin,
+        args = { '--port', '${port}' },
+        -- On Windows you may have to uncomment this:
+        -- detached = false,
+      },
+    }
+
+    -- Function to extract executable name from build.zig
+    local function get_executable_name()
+      local build_zig_path = vim.fn.getcwd() .. '/build.zig'
+      local executable_name = nil
+
+      -- Read the build.zig file
+      local file = io.open(build_zig_path, 'r')
+      if not file then
+        vim.notify('Could not open build.zig', vim.log.levels.ERROR)
+        return nil
+      end
+
+      local content = file:read '*all'
+      file:close()
+
+      -- Pattern to match .name = "<executable_name>"
+      local name_pattern = '%.name%s*=%s*[\'"]([%w_%-/%.]+)[\'"]'
+
+      -- Search for the pattern
+      executable_name = content:match(name_pattern)
+
+      if not executable_name then
+        vim.notify('Could not find executable name in build.zig', vim.log.levels.ERROR)
+        return nil
+      end
+
+      return executable_name
+    end
+    dap.configurations.zig = {
+      {
+        name = 'Launch',
+        type = 'codelldb',
+        request = 'launch',
+
+        program = function()
+          -- Extract the executable name
+          local exe_name = get_executable_name()
+          if not exe_name then
+            return nil
+          end
+
+          -- Compile your Zig program before debugging
+          vim.fn.jobstart('zig build', { stdout_buffered = true, stderr_buffered = true })
+
+          -- Construct the path to the executable
+          local exe_path = vim.fn.getcwd() .. '/zig-out/bin/' .. exe_name
+          return exe_path
+        end,
+        cwd = '${workspaceFolder}',
+        stopOnEntry = false,
+        args = function()
+          local input = vim.fn.input 'Arguments: '
+          return vim.split(input, ' ', { trimempty = true })
+        end,
+        runInTerminal = false,
       },
     }
 
