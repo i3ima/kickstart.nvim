@@ -245,7 +245,7 @@ vim.opt.rtp:prepend(lazypath)
 --    :Lazy update
 --
 -- NOTE: Here is where you install your plugins.
-require('lazy').setup {
+require('lazy').setup{
   spec = {
     -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
     'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
@@ -472,28 +472,34 @@ require('lazy').setup {
             F11 = '<F11>',
             F12 = '<F12>',
           },
-        },
-
-        -- Document existing key chains
-        spec = {
-          { '<leader>c', group = '[C]ode', mode = { 'n', 'x' } },
-          { '<leader>d', group = '[D]ocument' },
-          { '<leader>r', group = '[R]ename' },
-          { '<leader>b', group = '[B]uffer' },
-          { '<leader>s', group = '[S]earch' },
-          { '<leader>w', group = '[W]orkspace' },
-          { '<leader>t', group = '[T]oggle' },
-          { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
-          {
-            '<leader>sv',
-            function()
-              local shortcuts = require 'telescope-live-grep-args.shortcuts'
-              shortcuts.grep_visual_selection()
-            end,
-            desc = '[S]earch [V]isual',
-            mode = { 'v' },
-          },
-        },
+        }
+      },
+        config = function ()
+          require("which-key").add({
+            { '<leader>c', group = '[C]ode', mode = { 'n', 'x' } },
+            { '<leader>d', group = '[D]ocument' },
+            { '<leader>r', group = '[R]ename' },
+            { '<leader>b', group = '[B]uffer' },
+            {
+              '<leader>s',
+              group = '[S]earch',
+              expand = function()
+                return {
+                  '<leader>sv',
+                  function()
+                    local shortcuts = require 'telescope-live-grep-args.shortcuts'
+                    shortcuts.grep_visual_selection()
+                  end,
+                  desc = '[S]earch [V]isual',
+                  mode = { 'v' },
+                }
+              end,
+            },
+            { '<leader>w', group = '[W]orkspace' },
+            { '<leader>t', group = '[T]oggle' },
+            { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
+          })
+        end,
       },
 
       -- NOTE: Plugins can specify dependencies.
@@ -1176,7 +1182,6 @@ require('lazy').setup {
       --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
       --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
       -- { import = 'custom.plugins' },
-    },
   },
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
