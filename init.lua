@@ -247,6 +247,12 @@ vim.opt.rtp:prepend(lazypath)
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup {
   spec = {
+    {
+      'julienvincent/nvim-paredit',
+      config = function()
+        require('nvim-paredit').setup()
+      end,
+    },
     -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
     'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
@@ -255,9 +261,9 @@ require('lazy').setup {
       cmd = { 'MarkdownPreviewToggle', 'MarkdownPreview', 'MarkdownPreviewStop' },
       build = 'cd app && yarn install',
       init = function()
-        vim.g.mkdp_filetypes = { 'markdown' }
+        vim.g.mkdp_filetypes = { 'markdown', 'text' }
       end,
-      ft = { 'markdown' },
+      ft = { 'markdown', 'text' },
     },
 
     -- For easier git view inside of neovim
@@ -826,7 +832,7 @@ require('lazy').setup {
           clangd = {},
           gopls = {},
           sqlls = {},
-          -- pyright = {},
+          pyright = {},
           -- rust_analyzer = {},
           -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
           --
@@ -883,6 +889,10 @@ require('lazy').setup {
               local server = servers[server_name] or {}
 
               -- Disable on-save formatiing of ftplugin
+              if server_name == 'elixirls' then
+                vim.g.elixir_fmt_autosave = 0
+              end
+
               if server_name == 'zls' then
                 vim.g.zig_fmt_autosave = 0
               end
@@ -934,6 +944,7 @@ require('lazy').setup {
           sh = { 'shfmt' },
           lua = { 'stylua' },
           bash = { 'shfmt' },
+          make = { 'checkmake' },
           -- Conform can also run multiple formatters sequentially
           -- python = { "isort", "black" },
           --
