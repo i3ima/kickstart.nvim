@@ -246,6 +246,20 @@ vim.opt.rtp:prepend(lazypath)
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
   {
+    'joshuavial/aider.nvim',
+    config = function(self, opts)
+      require('aider').setup {
+        -- your configuration comes here
+        -- if you don't want to use the default settings
+        auto_manage_context = false, -- automatically manage buffer context
+        default_bindings = true, -- use default <leader>A keybindings
+        debug = false, -- enable debug logging
+      }
+
+      vim.api.nvim_set_keymap('n', '<leader>A', ':AiderOpen --no-auto-commit <CR>', { noremap = true, silent = true })
+    end,
+  },
+  {
     'Olical/conjure',
     ft = { 'clojure', 'fennel', 'python', 'scheme', 'scheme.guile', 'guile' }, -- etc
     lazy = true,
