@@ -137,6 +137,11 @@ vim.o.updatetime = 250
 -- Decrease mapped sequence wait time
 vim.o.timeoutlen = 300
 
+-- Set tabsize and shiftwidth
+vim.o.shiftwidth = 2
+vim.o.tabstop = 4
+vim.o.expandtab = true
+
 local severityMapping = {
   ['ERROR'] = vim.diagnostic.severity.ERROR,
   ['WARN'] = vim.diagnostic.severity.WARN,
@@ -264,6 +269,7 @@ rtp:prepend(lazypath)
 --
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
+  -- AI Assintants Support
   {
     'joshuavial/aider.nvim',
     config = function(self, opts)
@@ -614,7 +620,7 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sf', function()
-        return builtin.find_files { hidden = false, no_ignore = true }
+        return builtin.find_files { hidden = true, no_ignore = true }
       end, { desc = '[S]earch [F]iles' })
       vim.keymap.set('n', '<leader>sm', builtin.marks, { desc = '[S]earch [M]arks' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
