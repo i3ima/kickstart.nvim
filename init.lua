@@ -269,6 +269,27 @@ rtp:prepend(lazypath)
 --
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
+  -- To make working with CSV easier
+  {
+    'hat0uma/csvview.nvim',
+    ---@module "csvview"
+    ---@type CsvView.Options
+    opts = {
+      parser = { comments = { '#', '//' } },
+      view = {
+        display_mode = 'border',
+      },
+    },
+    cmd = { 'CsvViewEnable', 'CsvViewDisable', 'CsvViewToggle' },
+  },
+  -- Zoxide Integration
+  {
+    'jvgrootveld/telescope-zoxide',
+    config = function()
+      require('telescope').load_extension 'zoxide'
+    end,
+    dependencies = { 'nvim-lua/popup.nvim', 'nvim-lua/plenary.nvim', 'nvim-telescope/telescope.nvim' },
+  },
   -- AI Assintants Support
   {
     'joshuavial/aider.nvim',
@@ -462,7 +483,6 @@ require('lazy').setup({
     event = 'VimEnter', -- Sets the loading event to 'VimEnter'
     opts = {
       spec = {
-        delay = 0,
         { '<leader>c', group = '[C]ode', mode = { 'n', 'x' } },
         { '<leader>d', group = '[D]ocument' },
         { '<leader>r', group = '[R]ename' },
@@ -605,12 +625,35 @@ require('lazy').setup({
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
           },
+
+          zoxide = {
+            prompt_title = '[ Walking on the shoulders of TJ ]',
+            mappings = {
+              default = {
+                after_action = function(selection)
+                  print('Update to (' .. selection.z_score .. ') ' .. selection.path)
+                end,
+              },
+              ['<C-s>'] = {
+                before_action = function(selection)
+                  print 'before C-s'
+                end,
+                action = function(selection)
+                  vim.cmd.edit(selection.path)
+                end,
+              },
+              ['<C-q>'] = {
+                action = require('telescope._extensions.zoxide.utils').create_basic_command 'split',
+              },
+            },
+          },
         },
       }
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
       pcall(require('telescope').load_extension, 'live_grep_args')
+      pcall(require('telescope').load_extension, 'zoxide')
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
@@ -675,6 +718,8 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sn', function()
         builtin.find_files { cwd = vim.fn.stdpath 'config' }
       end, { desc = '[S]earch [N]eovim files' })
+
+      vim.keymap.set('n', '<leader>sp', require('telescope').extensions.zoxide.list, { desc = '[S]earch [P]aths' })
     end,
   },
   -- LSP Plugins
