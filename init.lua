@@ -110,6 +110,9 @@ vim.o.mouse = 'a'
 -- Don't show the mode, since it's already in the status line
 vim.o.showmode = false
 
+-- Allow local per-project configurations
+vim.o.exrc = true
+
 -- Sync clipboard between OS and Neovim.
 --  Schedule the setting after `UiEnter` because it can increase startup-time.
 --  Remove this option if you want your OS clipboard to remain independent.
@@ -269,66 +272,18 @@ rtp:prepend(lazypath)
 --
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
-  -- To make working with CSV easier
   {
-    'hat0uma/csvview.nvim',
-    ---@module "csvview"
-    ---@type CsvView.Options
-    opts = {
-      parser = { comments = { '#', '//' } },
-      view = {
-        display_mode = 'border',
-      },
+    'greggh/claude-code.nvim',
+    dependencies = {
+      'nvim-lua/plenary.nvim', -- Required for git operations
     },
-    cmd = { 'CsvViewEnable', 'CsvViewDisable', 'CsvViewToggle' },
-  },
-  -- Zoxide Integration
-  {
-    'jvgrootveld/telescope-zoxide',
     config = function()
-      require('telescope').load_extension 'zoxide'
+      require('claude-code').setup()
     end,
-    dependencies = { 'nvim-lua/popup.nvim', 'nvim-lua/plenary.nvim', 'nvim-telescope/telescope.nvim' },
   },
-  -- AI Assintants Support
-  {
-    'joshuavial/aider.nvim',
-    config = function(self, opts)
-      require('aider').setup {
-        -- your configuration comes here
-        -- if you don't want to use the default settings
-        auto_manage_context = false, -- automatically manage buffer context
-        default_bindings = true, -- use default <leader>A keybindings
-        debug = false, -- enable debug logging
-      }
 
-      vim.api.nvim_set_keymap('n', '<leader>A', ':AiderOpen --no-auto-commit <CR>', { noremap = true, silent = true })
-    end,
-  },
-  {
-    'Olical/conjure',
-    ft = { 'clojure', 'fennel', 'python', 'scheme', 'scheme.guile', 'guile' }, -- etc
-    lazy = true,
-    init = function()
-      -- Set configuration options here
-      -- Uncomment this to get verbose logging to help diagnose internal Conjure issues
-      -- This is VERY helpful when reporting an issue with the project
-      -- vim.g["conjure#debug"] = true
-    end,
-
-    -- Optional cmp-conjure integration
-    dependencies = { 'PaterJason/cmp-conjure' },
-  },
-  {
-    'PaterJason/cmp-conjure',
-    lazy = true,
-    config = function()
-      local cmp = require 'cmp'
-      local config = cmp.get_config()
-      table.insert(config.sources, { name = 'conjure' })
-      return cmp.setup(config)
-    end,
-  },
+  -- To have a ranger util support
+  'kevinhwang91/rnvimr',
 
   -- {
   --   'julienvincent/nvim-paredit',
@@ -337,9 +292,6 @@ require('lazy').setup({
   --   end,
   -- },
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
-  'NMAC427/guess-indent.nvim', -- Detect tabstop and shiftwidth automatically
-
-  'HiPhish/guile.vim',
 
   {
     'iamcco/markdown-preview.nvim',
@@ -421,16 +373,6 @@ require('lazy').setup({
   --
   -- Use `opts = {}` to force a plugin to be loaded.
   --
-
-  {
-    'almo7aya/openingh.nvim',
-    config = function() end,
-    cmd = {
-      'OpenInGHRepo',
-      'OpenInGHFile',
-      'OpenInGHFileLines',
-    },
-  },
 
   -- For easier bookmarking
   { 'chentoast/marks.nvim', config = function() end },
@@ -625,35 +567,13 @@ require('lazy').setup({
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
           },
-
-          zoxide = {
-            prompt_title = '[ Walking on the shoulders of TJ ]',
-            mappings = {
-              default = {
-                after_action = function(selection)
-                  print('Update to (' .. selection.z_score .. ') ' .. selection.path)
-                end,
-              },
-              ['<C-s>'] = {
-                before_action = function(selection)
-                  print 'before C-s'
-                end,
-                action = function(selection)
-                  vim.cmd.edit(selection.path)
-                end,
-              },
-              ['<C-q>'] = {
-                action = require('telescope._extensions.zoxide.utils').create_basic_command 'split',
-              },
-            },
-          },
         },
       }
+
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
       pcall(require('telescope').load_extension, 'live_grep_args')
-      pcall(require('telescope').load_extension, 'zoxide')
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
@@ -662,36 +582,16 @@ require('lazy').setup({
 
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
-      vim.keymap.set('n', '<leader>sf', function()
+      vim.keymap.set('n', '<leader>si', function()
         return builtin.find_files { hidden = true, no_ignore = true }
+      end, { desc = '[S]earch Files [I]gnored' })
+      vim.keymap.set('n', '<leader>sf', function()
+        return builtin.find_files { hidden = true, no_ignore = false }
       end, { desc = '[S]earch [F]iles' })
       vim.keymap.set('n', '<leader>sm', builtin.marks, { desc = '[S]earch [M]arks' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', extensions.live_grep_args.live_grep_args, { desc = '[S]earch by [G]rep' })
-      vim.keymap.set('n', '<leader>sd', function()
-        local construct_choices = function()
-          local choices = {}
-          for key, value in pairs(severityMapping) do
-            choices[value] = key
-          end
-
-          return choices
-        end
-
-        vim.ui.select(construct_choices(), {
-          prompt = 'Select severity:',
-          format_item = function(item)
-            return 'Filter by: ' .. item
-          end,
-        }, function(choice, idx)
-          print('CHIOCE: ' .. tostring(choice))
-
-          local variant = severityMapping[choice]
-
-          builtin.diagnostics { bufnr = nil, severity = variant }
-        end)
-      end, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
@@ -718,8 +618,6 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sn', function()
         builtin.find_files { cwd = vim.fn.stdpath 'config' }
       end, { desc = '[S]earch [N]eovim files' })
-
-      vim.keymap.set('n', '<leader>sp', require('telescope').extensions.zoxide.list, { desc = '[S]earch [P]aths' })
     end,
   },
   -- LSP Plugins
@@ -943,6 +841,8 @@ require('lazy').setup({
         -- But for many setups, the LSP (`ts_ls`) will work just fine
         -- ts_ls = {},
         --
+        ['erlang-ls'] = {},
+        pylsp = {},
 
         lua_ls = {
           -- cmd = { ... },
@@ -1253,6 +1153,7 @@ require('lazy').setup({
         'rust',
         'elixir',
         'eex',
+        'scheme',
         'heex',
       },
       -- Autoinstall languages that are not installed
