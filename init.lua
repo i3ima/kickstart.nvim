@@ -143,13 +143,6 @@ vim.o.shiftwidth = 2
 vim.o.tabstop = 4
 vim.o.expandtab = true
 
-local severityMapping = {
-  ['ERROR'] = vim.diagnostic.severity.ERROR,
-  ['WARN'] = vim.diagnostic.severity.WARN,
-  ['INFO'] = vim.diagnostic.severity.INFO,
-  ['HINT'] = vim.diagnostic.severity.HINT,
-}
-
 -- Configure how new splits should be opened
 vim.o.splitright = true
 vim.o.splitbelow = true
@@ -283,13 +276,6 @@ rtp:prepend(lazypath)
 require('lazy').setup({
   -- NOTE: Plugins can be added via a link or github org/name. To run setup automatically, use `opts = {}`
   { 'NMAC427/guess-indent.nvim', opts = {} },
-  {
-    'greggh/claude-code.nvim',
-    dependencies = {
-      'nvim-lua/plenary.nvim', -- Required for git operations
-    },
-    config = function() require('claude-code').setup() end,
-  },
 
   -- To have a ranger util support
   'kevinhwang91/rnvimr',
@@ -363,6 +349,7 @@ require('lazy').setup({
   -- Nordic scheme
   {
     'AlexvZyl/nordic.nvim',
+    enabled = false,
     lazy = false,
     priority = 1000,
     config = function() require('nordic').load() end,
@@ -575,20 +562,25 @@ require('lazy').setup({
             },
           },
         },
+        pickers = {
+          colorscheme = {
+            enable_preview = true,
+          },
+        },
         extensions = {
           ['ui-select'] = { require('telescope.themes').get_dropdown() },
         },
       }
 
-      -- Enable Telescope extensions if they are installed
-      pcall(require('telescope').load_extension, 'fzf')
-      pcall(require('telescope').load_extension, 'ui-select')
-      pcall(require('telescope').load_extension, 'live_grep_args')
-
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
 
       local extensions = require('telescope').extensions
+
+      -- Enable Telescope extensions if they are installed
+      pcall(require('telescope').load_extension, 'fzf')
+      pcall(require('telescope').load_extension, 'ui-select')
+      pcall(require('telescope').load_extension, 'live_grep_args')
 
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
@@ -673,7 +665,7 @@ require('lazy').setup({
       -- Mason must be loaded before its dependents so we need to set it up here.
       -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
       { 'mason-org/mason.nvim', opts = {} },
-      { 'williamboman/mason-lspconfig.nvim', version = '^2.1.0' },
+      { 'williamboman/mason-lspconfig.nvim', version = '^2.1.0', opts = {} },
       'WhoIsSethDaniel/mason-tool-installer.nvim',
 
       -- Useful status updates for LSP.
@@ -798,6 +790,7 @@ require('lazy').setup({
         -- ts_ls = {},
         --
         ['erlang-ls'] = {},
+        ['elixirls'] = {},
         pylsp = {},
 
         lua_ls = {
@@ -880,20 +873,7 @@ require('lazy').setup({
     },
     opts = {
       notify_on_error = false,
-      format_on_save = function(bufnr)
-        -- Disable "format_on_save lsp_fallback" for languages that don't
-        -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
-        if disable_filetypes[vim.bo[bufnr].filetype] then
-          return nil
-        else
-          return {
-            timeout_ms = 500,
-            lsp_format = 'fallback',
-          }
-        end
-      end,
+      format_on_save = false,
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
@@ -1030,6 +1010,7 @@ require('lazy').setup({
     --
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
     'folke/tokyonight.nvim',
+    enabled = true,
     priority = 1000, -- Make sure to load this before all the other start plugins.
     init = function()
       -- Load the colorscheme here.
@@ -1125,6 +1106,57 @@ require('lazy').setup({
     indent = { enable = true, disable = { 'ruby', 'lua' } },
   },
 
+  -- Opencode integration plugin
+  {
+    'nickjvandyke/opencode.nvim',
+    version = '*', -- Latest stable release
+    dependencies = {
+      {
+        ---@module "snacks"
+        'folke/snacks.nvim',
+        opts = {
+          input = {}, -- Enhances `ask()`
+          picker = { -- Enhances `select()`
+            actions = {
+              opencode_send = function(...) return require('opencode').snacks_picker_send(...) end,
+            },
+            win = {
+              input = {
+                keys = {
+                  ['<a-a>'] = { 'opencode_send', mode = { 'n', 'i' } },
+                },
+              },
+            },
+          },
+          terminal = {}, -- Enables the `snacks` provider
+        },
+      },
+    },
+    config = function()
+      ---@type opencode.Opts
+      vim.g.opencode_opts = {
+        lsp = { enabled = true },
+      }
+
+      vim.o.autoread = true -- Required for `opts.events.reload`
+
+      -- Recommended/example keymaps
+      vim.keymap.set({ 'n', 'x' }, '<C-a>', function() require('opencode').ask('@this: ', { submit = true }) end, { desc = 'Ask opencode…' })
+      vim.keymap.set({ 'n', 'x' }, '<C-x>', function() require('opencode').select() end, { desc = 'Execute opencode action…' })
+      vim.keymap.set({ 'n', 't' }, '<C-.>', function() require('opencode').toggle() end, { desc = 'Toggle opencode' })
+
+      vim.keymap.set({ 'n', 'x' }, 'go', function() return require('opencode').operator '@this ' end, { desc = 'Add range to opencode', expr = true })
+      vim.keymap.set('n', 'goo', function() return require('opencode').operator '@this ' .. '_' end, { desc = 'Add line to opencode', expr = true })
+
+      vim.keymap.set('n', '<S-C-u>', function() require('opencode').command 'session.half.page.up' end, { desc = 'Scroll opencode up' })
+      vim.keymap.set('n', '<S-C-d>', function() require('opencode').command 'session.half.page.down' end, { desc = 'Scroll opencode down' })
+
+      -- You may want these if you use the opinionated `<C-a>` and `<C-x>` keymaps above — otherwise consider `<leader>o…` (and remove terminal mode from the `toggle` keymap)
+      vim.keymap.set('n', '+', '<C-a>', { desc = 'Increment under cursor', noremap = true })
+      vim.keymap.set('n', '-', '<C-x>', { desc = 'Decrement under cursor', noremap = true })
+    end,
+  },
+
   -- The following two comments only work if you have downloaded the kickstart repo, not just copy pasted the
   -- init.lua. If you want these files, they are in the repository, so you can just download them and
   -- place them in the correct locations.
@@ -1172,6 +1204,9 @@ require('lazy').setup({
     },
   },
 })
+
+-- Set default colorscheme
+vim.cmd.colorscheme 'tokyonight-night'
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
